@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<title>Coins by Michel Neeser</title>
+		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	</head>
+
+	<body>
+
+		<script>
+			var intervalId = -1;
+
+			$(document).ready(function () {
+				/* INITIAL API CALLS */
+
+				// top 10 coins
+				$.get( "https://api.coinmarketcap.com/v1/ticker/?limit=10", function( data ) {
+					var html = "";
+					$( data ).each( function( index, val ) {
+						html += "<div><a href='#' onclick='coinLinkClicked(this)' data-coinid='" + val.id + "'>" + val.symbol + "</a></div>";
+					});
+					$( "#coins_top10" ).append( html );
+				});
+
+				// btc fees
+				$.get( "https://bitcoinfees.earn.com/api/v1/fees/recommended", function( data ) {
+					$( "#btc_fees" ).append( data.fastestFee + " sat/byte" );
+				});
+
+				// total market cap in usd
+				$.get( "https://api.coinmarketcap.com/v1/global/", function( data ) {
+					$( "#total_market_cap" ).append( data.total_market_cap_usd );
+				});
+
+				// current block height
+				$.get( "https://blockchain.info/de/q/getblockcount", function( data ) {
+					$( "#block_height" ).append( data );
+				});
+
+				/* EVENTS */
+
+				$( "#coin_form" ).on( "submit", function( e ) {
+					e.preventDefault();
+					var coinId = $( "#coin_id" ).val();
+					if ( coinId != "" ) {
+						var coinCurrency = $( "#coin_currency" ).val();
+						getCoinData( coinId, coinCurrency );
+						clearInterval( intervalId );
+						intervalId = setInterval( function() {
+							getCoinData( coinId, coinCurrency );
+						}, 60000 ); // 1 minute
+					}
+				});
+			});
+
+			function coinLinkClicked( link ) {
+				$( "#coin_id" ).val( $( link ).data( "coinid" ) );
+			}
+
+			function getCoinData( coinId, coinCurrency ) {
+				$.get( "https://api.coinmarketcap.com/v1/ticker/" + coinId + "/?convert=" + coinCurrency, function( data ) {
+					data = data[0];
+					appendToTicker( data.symbol + ": <b>" + coinCurrency + " " + data[ "price_" + coinCurrency.toLowerCase() ] + "</b> (currently " + data.available_supply + " coins) ///// " + new Date().toLocaleString(), coinId );
+				}).fail( function() {
+					appendToTicker( "Huh, this coin does not exist..." );
+				});
+			}
+
+			function appendToTicker( result, coinId ) {
+				$( "#ticker" ).prepend( "<div>" + result + "</div>" );
+			}
+		</script>
+
+		<form id="coin_form">
+			<label>coin:</label>
+			<input type="text" id="coin_id" />
+			<select name="coin_currency" id="coin_currency">
+				<option value="USD">USD</option>
+				<option value="EUR">EUR</option>
+				<option value="CHF">CHF</option>
+			</select>
+			<input type="submit" value="show and update every minute" />
+		</form>
+
+		<p>
+			<div id="coins_top10" style="float:left">top 10 coins:</div>
+			<div style="margin-left:200px;margin-top:30px;padding: 10px;border: 1px solid black;">
+				<p><b>Global data (not updated automatically):</b></p>
+				<p>
+					<span id="btc_fees">Min BTC fee for fastest confirmation: </span><br />
+					<span id="total_market_cap">Total market cap in USD: </span><br />
+					<span id="block_height">Current block height: </span>
+				</p>
+			</div>
+		</p>
+		<div style="clear:both;"></div>
+		<p><hr /></p>
+		<p><div id="ticker"></div></p>
+		<p>(data by coinmarketcap.com, bitcoinfees.earn.com and blockchain.info)</p>
+
+	</body>
+
+</html>
